@@ -35,7 +35,8 @@ class ResBlock1d(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         conv_out = self.conv(x)
-        return F.silu(conv_out + self.se(conv_out) + self.skip(x))
+        # SE scales conv_out channel-wise; add identity skip for residual
+        return F.silu(self.se(conv_out) + self.skip(x))
 
 
 class CNN1DSE(nn.Module):

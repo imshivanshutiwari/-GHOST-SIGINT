@@ -10,7 +10,9 @@ def sinusoidal_pe(max_len: int, d_model: int) -> torch.Tensor:
     pos = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
     div = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
     pe[:, 0::2] = torch.sin(pos * div)
-    pe[:, 1::2] = torch.cos(pos * div[:d_model // 2])
+    # cos columns may be one fewer than sin columns when d_model is odd
+    n_cos = pe[:, 1::2].shape[1]
+    pe[:, 1::2] = torch.cos(pos * div[:n_cos])
     return pe.unsqueeze(0)  # (1, max_len, d_model)
 
 

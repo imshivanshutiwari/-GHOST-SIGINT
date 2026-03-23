@@ -97,7 +97,7 @@ def train_model(model: nn.Module, data: Tuple[torch.Tensor, torch.Tensor],
     te_l = DataLoader(te, batch_size * 2, pin_memory=True)
     criterion = LabelSmoothingCE(LABEL_SMOOTHING, N_CLASSES)
     opt = AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
-    sched = OneCycleLR(opt, 1e-3, total_steps=epochs * len(tr_l), pct_start=0.3)
+    sched = OneCycleLR(opt, max_lr=LEARNING_RATE, total_steps=epochs * len(tr_l), pct_start=0.3)
     scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda")
     es = EarlyStopping()
     best_acc, best_state = 0.0, None
