@@ -17,9 +17,15 @@ scipy==1.13.0
 scikit-learn==1.4.2
 
 # Deep Learning
+# onnx is intentionally NOT listed as a direct dependency.
+# All versions of the onnx package (<=1.20.1) contain an unpatched supply-chain
+# vulnerability: onnx.hub.load() with silent=True suppresses untrusted-repository
+# warnings, enabling silent model-substitution attacks.  No patched release exists.
+# This project uses torch.onnx.export (part of PyTorch) for ONNX export and
+# onnxruntime for inference — neither requires onnx to be a direct dependency.
+# onnx.hub is never called anywhere in this codebase.
 torch==2.6.0
 torchvision==0.21.0
-onnx==1.17.0
 onnxruntime==1.18.1
 
 # System

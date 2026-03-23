@@ -1,9 +1,14 @@
 """ONNX export + INT8 dynamic quantization + SQNR checker.
 
 Security notes:
-- onnx.hub.load() is intentionally NOT used here; it has an unpatched supply-chain
-  vulnerability (CVE: silent=True suppresses repo-trust warnings). Load ONNX models
-  only from trusted local paths produced by export_onnx() in this module.
+- onnx.hub.load() is intentionally NOT used here and onnx is NOT a direct
+  dependency of this project.  All versions of the onnx package (<=1.20.1)
+  contain an unpatched supply-chain vulnerability: passing silent=True to
+  onnx.hub.load() suppresses untrusted-repository warnings, allowing an
+  attacker to silently substitute a malicious model (supply-chain attack).
+  No patched release exists upstream.  ONNX models are loaded exclusively
+  from trusted local paths produced by export_onnx() in this module via
+  torch.onnx.export (part of PyTorch — not the standalone onnx package).
 - torch.load() is intentionally NOT used; load weights via model.load_state_dict()
   with an in-memory state-dict to avoid the torch deserialization RCE vector.
 """
