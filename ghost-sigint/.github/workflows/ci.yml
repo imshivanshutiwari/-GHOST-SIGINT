@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "copilot/**"]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  lint:
+    name: Lint (ruff + mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "${{ env.PYTHON_VERSION }}"}
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('ghost-sigint/requirements.txt') }}
+      - name: Install deps
+        run: pip install ruff mypy pydantic pydantic-settings
+      - name: Ruff
+        run: ruff check ghost-sigint/backend/ --output-format=github
+      - name: Mypy
+        run: mypy ghost-sigint/backend/ --ignore-missing-imports --no-error-summary
+        continue-on-error: true
+
+  test:
+    name: Test (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ghost-sigint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "${{ env.PYTHON_VERSION }}"}
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('ghost-sigint/requirements.txt') }}
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Run tests
+        run: pytest backend/tests/ -v --tb=short --cov=backend --cov-report=xml
+        env:
+          SECRET_KEY: "ci_secret_key_at_least_32_chars_long_for_testing"
+          ENVIRONMENT: testing
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ghost-sigint/coverage.xml
+          fail_ci_if_error: false
+
+  docker-build:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t ghost-sigint-backend:ci -f ghost-sigint/Dockerfile.backend ghost-sigint/
+      - name: Build nginx image
+        run: docker build -t ghost-sigint-nginx:ci -f ghost-sigint/Dockerfile.nginx ghost-sigint/
