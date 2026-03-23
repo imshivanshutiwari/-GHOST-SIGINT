@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from auth.jwt_handler import create_access_token, create_refresh_token, rotate_refresh_token, verify_token
 from auth.password import verify_password, hash_password
 from auth.audit import log_action
-from auth.rbac import get_current_user
+from auth.rbac import require_role, Role
 from constants import LOGIN_LOCKOUT_ATTEMPTS, LOGIN_LOCKOUT_MINUTES
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -64,7 +64,7 @@ async def login(
         _fails[username] = recent
         if len(recent) >= LOGIN_LOCKOUT_ATTEMPTS:
             _locks[username] = datetime.utcnow() + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
-        await log_action(username, "unknown", "LOGIN_FAIL", "/auth/login", "FAILURE", ip, ua)
+        log_action(username, "unknown", "LOGIN_FAIL", "/auth/login", "FAILURE", ip, ua)
         raise HTTPException(401, "AUTHENTICATION FAILED")
 
     role = user["role"]
@@ -74,12 +74,12 @@ async def login(
 
     response.set_cookie("access_token",  access_token,  httponly=True, samesite="strict", secure=False)
     response.set_cookie("refresh_token", refresh_token, httponly=True, samesite="strict", secure=False)
-    await log_action(username, role, "LOGIN_SUCCESS", "/auth/login", "SUCCESS", ip, ua)
+    log_action(username, role, "LOGIN_SUCCESS", "/auth/login", "SUCCESS", ip, ua)
     return TokenResponse(access_token=access_token, role=role)
 
 
 @router.post("/logout")
-async def logout(response: Response, _=Depends(get_current_user)):
+async def logout(response: Response, _=Depends(require_role(Role.OPERATOR))):
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
     return {"message": "Logged out"}

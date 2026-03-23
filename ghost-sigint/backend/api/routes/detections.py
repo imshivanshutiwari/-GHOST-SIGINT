@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from auth.rbac import get_current_user
+from auth.rbac import require_role, Role
 
 router = APIRouter(prefix="/detections", tags=["detections"])
 _store: List[dict] = []
@@ -27,19 +27,19 @@ class Detection(BaseModel):
 
 @router.get("/history")
 async def history(limit: int = Query(100, le=1000), since: Optional[float] = None,
-                  _=Depends(get_current_user)):
+                  _=Depends(require_role(Role.OPERATOR))):
     r = _store if not since else [d for d in _store if d["timestamp"] >= since]
     return {"detections": r[-limit:], "total": len(r)}
 
 
 @router.post("/record")
-async def record(det: Detection, _=Depends(get_current_user)):
+async def record(det: Detection, _=Depends(require_role(Role.OPERATOR))):
     _store.append(det.model_dump())
     return {"status": "recorded"}
 
 
 @router.get("/export")
-async def export_csv(_=Depends(get_current_user)):
+async def export_csv(_=Depends(require_role(Role.OPERATOR))):
     buf = io.StringIO()
     if _store:
         w = csv.DictWriter(buf, fieldnames=list(_store[0].keys()))

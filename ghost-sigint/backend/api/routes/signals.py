@@ -7,7 +7,7 @@ import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from auth.rbac import get_current_user, require_role
+from auth.rbac import require_role, Role
 from signal.generator import SignalGenerator
 from signal.impairments import apply_awgn
 from constants import SIGNAL_CLASSES, FS
@@ -35,7 +35,7 @@ class SignalResponse(BaseModel):
 
 
 @router.post("/generate", response_model=SignalResponse)
-async def generate_signal(req: SignalRequest, _=Depends(require_role("ANALYST"))):
+async def generate_signal(req: SignalRequest, _=Depends(require_role(Role.ANALYST))):
     if req.signal_type not in SIGNAL_CLASSES:
         raise HTTPException(400, f"Unknown signal type. Valid: {SIGNAL_CLASSES}")
     sig = _gen.generate(req.signal_type, duration=req.duration, fc=req.fc, fs=req.fs)
@@ -48,6 +48,6 @@ async def generate_signal(req: SignalRequest, _=Depends(require_role("ANALYST"))
 
 
 @router.get("/params")
-async def signal_params(_=Depends(get_current_user)):
+async def signal_params(_=Depends(require_role(Role.OPERATOR))):
     return {"signal_classes": SIGNAL_CLASSES, "snr_range": [-30, 50],
             "duration_range": [1e-4, 0.1], "fc_range": [1000, 500000], "fs": FS}

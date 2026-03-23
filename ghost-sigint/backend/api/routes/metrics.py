@@ -6,13 +6,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 import psutil
 from fastapi import APIRouter, Depends
-from auth.rbac import get_current_user
+from auth.rbac import require_role, Role
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 
 @router.get("/system")
-async def system_metrics(_=Depends(get_current_user)):
+async def system_metrics(_=Depends(require_role(Role.OPERATOR))):
     mem = psutil.virtual_memory()
     try:
         import pynvml
@@ -31,7 +31,7 @@ async def system_metrics(_=Depends(get_current_user)):
 
 
 @router.get("/performance")
-async def performance(_=Depends(get_current_user)):
+async def performance(_=Depends(require_role(Role.OPERATOR))):
     return {"latency_p50_ms": 5.2, "latency_p95_ms": 12.1, "latency_p99_ms": 28.4,
             "detection_rate_pct": 94.3, "false_alarm_rate_pct": 0.7,
             "classifications_per_sec": 20.0}
