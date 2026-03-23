@@ -50,3 +50,18 @@ def measure_power_db(signal: NDArray[np.complex128]) -> float:
     """Return average power in dBFS."""
     p = float(np.mean(np.abs(signal) ** 2))
     return 10 * np.log10(p + 1e-30)
+
+
+def apply_agc(
+    signal: NDArray,
+    fs: float = FS,
+    target_power_db: float = TARGET_POWER_DB,
+) -> NDArray[np.complex128]:
+    """
+    Convenience wrapper around :func:`agc` that accepts a ``fs`` parameter
+    and automatically derives attack/release time constants from the sample rate.
+    """
+    aa = 1.0 - np.exp(-1.0 / (fs * 1e-3))   # 1 ms attack
+    ar = 1.0 - np.exp(-1.0 / (fs * 0.1))    # 100 ms release
+    sig = signal.astype(np.complex128) if not np.iscomplexobj(signal) else signal
+    return agc(sig, target_power_db=target_power_db, alpha_attack=aa, alpha_release=ar)

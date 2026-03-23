@@ -161,3 +161,7 @@ def apply_channel(
         s = multipath(s, seed=int(rng.integers(0, 2**31)))
     s = awgn(s, snr_db=snr_db, seed=int(rng.integers(0, 2**31)))
     return s
+
+
+# Convenience alias — same as awgn() but with a more descriptive name.
+apply_awgn = awgn

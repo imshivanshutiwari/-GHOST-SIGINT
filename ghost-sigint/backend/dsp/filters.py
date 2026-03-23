@@ -63,3 +63,17 @@ def bode(
         "magnitude_db": 20 * np.log10(np.abs(h) + 1e-30),
         "phase_deg": np.degrees(np.unwrap(np.angle(h))),
     }
+
+
+def design_bandpass(
+    fl: float,
+    fh: float,
+    fs: float = FS,
+    order: int = 6,
+) -> NDArray[np.float64]:
+    """
+    Convenience alias for :func:`butterworth_bandpass` using keyword-argument
+    names ``fl``/``fh`` instead of ``low_hz``/``high_hz``.
+    Returns SOS coefficients (shape ``(n_sections, 6)``).
+    """
+    return butterworth_bandpass(low_hz=fl, high_hz=fh, order=order, fs=fs)

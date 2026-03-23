@@ -22,10 +22,10 @@ def compute_stft(
     n_fft: int = N_FFT,
     hop: int = HOP,
     fs: float = FS,
-) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.complex128]]:
+) -> dict:
     """
     STFT with Hann window.
-    Returns (freqs_hz, times_s, S) where S is complex spectrogram.
+    Returns dict with keys: ``freq_hz``, ``time_s``, ``S_complex``, ``S_db``.
     """
     f, t, Zxx = scipy_stft(
         signal if not np.iscomplexobj(signal) else signal.real,
@@ -35,7 +35,13 @@ def compute_stft(
         noverlap=n_fft - hop,
         return_onesided=not np.iscomplexobj(signal),
     )
-    return f, t, Zxx
+    S_db = 20 * np.log10(np.abs(Zxx) + 1e-12)
+    return {
+        "freq_hz": f.astype(np.float64),
+        "time_s": t.astype(np.float64),
+        "S_complex": Zxx,
+        "S_db": S_db.astype(np.float64),
+    }
 
 
 def mel_filterbank(
@@ -81,11 +87,26 @@ def log_mel_spectrogram(
     """
     Log-mel spectrogram: shape (n_mel, T).
     """
-    _, _, S = compute_stft(signal, n_fft=n_fft, hop=hop, fs=fs)
-    power = np.abs(S) ** 2
+    out = compute_stft(signal, n_fft=n_fft, hop=hop, fs=fs)
+    power = np.abs(out["S_complex"]) ** 2
     fb = mel_filterbank(n_fft=n_fft, n_mel=n_mel, fs=fs)
     mel = fb @ power
     return (10 * np.log10(mel + 1e-10)).astype(np.float64)
+
+
+def compute_mel_spectrogram(
+    signal: NDArray,
+    n_fft: int = N_FFT,
+    hop: int = HOP,
+    n_mel: int = N_MEL,
+    fs: float = FS,
+) -> dict:
+    """
+    Compute log-mel spectrogram and return as a dict.
+    Returns ``{"log_mel": ndarray(n_mel, T)}``.
+    """
+    log_mel = log_mel_spectrogram(signal, n_fft=n_fft, hop=hop, n_mel=n_mel, fs=fs)
+    return {"log_mel": log_mel}
 
 
 def delta_features(

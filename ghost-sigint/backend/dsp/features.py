@@ -80,3 +80,7 @@ def extract_features(
     ], dtype=np.float64)
 
     return features
+
+
+# Alias used by dsp tests
+extract_rf_features = extract_features

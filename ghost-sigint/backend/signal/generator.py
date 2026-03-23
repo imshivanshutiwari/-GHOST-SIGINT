@@ -478,3 +478,54 @@ def generate_signal(
     """Generate a named signal class. Raises KeyError for unknown classes."""
     fn = _GENERATORS[signal_class]
     return fn(n_samples=n_samples, **kwargs)
+
+
+class SignalGenerator:
+    """
+    Convenience wrapper around the standalone generator functions.
+
+    Parameters
+    ----------
+    fs : float
+        Default sample rate in Hz (used when ``fs`` is not supplied to
+        :meth:`generate`).
+    """
+
+    def __init__(self, fs: float = FS) -> None:
+        self.fs = fs
+
+    def generate(
+        self,
+        signal_class: str,
+        duration: float = 0.001,
+        fc: float = 0.0,
+        fs: float | None = None,
+        seed: int | None = None,
+        **kwargs,
+    ) -> NDArray[np.complex128]:
+        """
+        Generate *signal_class* with the given *duration* (seconds).
+
+        Parameters
+        ----------
+        signal_class : str
+            One of the 10 supported RF signal classes.
+        duration : float
+            Signal duration in seconds.  Converted to
+            ``n_samples = int(duration * fs)``.
+        fc : float
+            Centre frequency offset applied in baseband (Hz).
+        fs : float | None
+            Override the instance sample rate for this call.
+        seed : int | None
+            RNG seed for reproducibility.
+        """
+        _fs = fs if fs is not None else self.fs
+        n_samples = max(1, int(duration * _fs))
+        return generate_signal(
+            signal_class,
+            n_samples=n_samples,
+            fc=fc,
+            seed=seed,
+            **kwargs,
+        )

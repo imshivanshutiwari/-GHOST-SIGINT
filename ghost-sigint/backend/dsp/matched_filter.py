@@ -11,10 +11,15 @@ from numpy.typing import NDArray
 def matched_filter(
     received: NDArray[np.complex128],
     reference: NDArray[np.complex128],
-) -> NDArray[np.complex128]:
+) -> dict:
     """
     MF output: y[n] = x[n] ⋆ h[n], h[n] = conj(s[N-1-n])
     Implemented via FFT for efficiency: Y(f) = X(f) · conj(S(f))
+
+    Returns dict with keys:
+      ``output``  — complex MF output array (length len(received)+len(reference)-1)
+      ``psl_db``  — Peak Sidelobe Level in dB
+      ``islr_db`` — Integrated Sidelobe Ratio in dB
     """
     n = len(received) + len(reference) - 1
     # Zero-pad to next power of 2 for efficiency
@@ -22,8 +27,12 @@ def matched_filter(
     X = np.fft.fft(received, n=n_fft)
     S = np.fft.fft(reference, n=n_fft)
     Y = X * np.conj(S)
-    output = np.fft.ifft(Y)[:n]
-    return output.astype(np.complex128)
+    output = np.fft.ifft(Y)[:n].astype(np.complex128)
+    return {
+        "output": output,
+        "psl_db": psl(output),
+        "islr_db": islr(output),
+    }
 
 
 def psl(mf_output: NDArray[np.complex128]) -> float:
