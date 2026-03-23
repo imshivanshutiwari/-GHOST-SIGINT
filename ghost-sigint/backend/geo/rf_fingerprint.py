@@ -1,5 +1,6 @@
 """RF hardware fingerprinting: 7 features + cosine-similarity device library."""
 from __future__ import annotations
+import itertools
 from typing import Dict, List, Tuple
 import numpy as np
 from scipy import stats
@@ -54,6 +55,7 @@ class RFFingerprinter:
 
     def __init__(self):
         self.library: Dict[str, np.ndarray] = {}
+        self._unknown_counter = itertools.count(1)
 
     def _norm(self, v: np.ndarray) -> np.ndarray:
         return v / (np.linalg.norm(v) + 1e-12)
@@ -69,7 +71,7 @@ class RFFingerprinter:
     def identify(self, features: np.ndarray) -> Dict:
         matches = self.match(features)
         if not matches:
-            uid = f"UNKNOWN_{len(self.library)+1:03d}"
+            uid = f"UNKNOWN_{next(self._unknown_counter):03d}"
             self.add_device(uid, features)
             return {"verdict": "UNKNOWN", "device_id": None, "similarity": 0.0, "top_matches": []}
         best_id, best_score = matches[0]
@@ -77,7 +79,7 @@ class RFFingerprinter:
             "SUSPECTED" if best_score >= self.SUSPECTED else "UNKNOWN"
         )
         if verdict == "UNKNOWN":
-            uid = f"UNKNOWN_{len(self.library)+1:03d}"
+            uid = f"UNKNOWN_{next(self._unknown_counter):03d}"
             self.add_device(uid, features)
         return {"verdict": verdict, "device_id": best_id, "similarity": best_score,
                 "top_matches": matches}

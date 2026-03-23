@@ -1,6 +1,7 @@
 """MUSIC Direction-of-Arrival estimation for ULA."""
 from __future__ import annotations
 import numpy as np
+from scipy.signal import find_peaks
 from typing import Tuple
 
 
@@ -49,7 +50,6 @@ def estimate_doa_music(
     D = max(1, _mdl(vals, X.shape[1]))
     thetas = np.arange(theta_range[0], theta_range[1] + step, step)
     P = music_pseudospectrum(R, D, thetas)
-    from scipy.signal import find_peaks
     peaks, _ = find_peaks(P, height=np.max(P) * 0.1)
     doa = thetas[peaks[:D]] if len(peaks) > 0 else np.array([0.0])
     return doa, P, D

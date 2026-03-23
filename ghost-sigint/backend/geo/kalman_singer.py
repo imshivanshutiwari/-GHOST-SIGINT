@@ -68,4 +68,5 @@ class SingerKalmanFilter:
         return {"accepted": True, "nis": nis, "x": self.x.copy()}
 
     def uncertainty_ellipse(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Return (eigenvalues, eigenvectors) of the 2D position covariance for ellipse plotting."""
         return np.linalg.eigh(self.P[:2, :2])
