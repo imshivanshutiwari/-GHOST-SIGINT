@@ -1,4 +1,12 @@
-"""ONNX export + INT8 dynamic quantization + SQNR checker."""
+"""ONNX export + INT8 dynamic quantization + SQNR checker.
+
+Security notes:
+- onnx.hub.load() is intentionally NOT used here; it has an unpatched supply-chain
+  vulnerability (CVE: silent=True suppresses repo-trust warnings). Load ONNX models
+  only from trusted local paths produced by export_onnx() in this module.
+- torch.load() is intentionally NOT used; load weights via model.load_state_dict()
+  with an in-memory state-dict to avoid the torch deserialization RCE vector.
+"""
 from __future__ import annotations
 import numpy as np
 import torch
