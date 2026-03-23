@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GHOST-SIGINT // SECURE ACCESS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="military.css">
+  <style>
+    .gh-login-wrap { flex-direction: column; gap: 1rem; }
+    .error-msg { color: var(--accent-red); font-size: .8rem; text-align: center; min-height: 1.2em; }
+    .login-btn { width: 100%; padding: .75rem; margin-top: 1rem; font-size: .9rem; }
+    .corner { position: absolute; width: 12px; height: 12px; border-color: var(--accent-green); border-style: solid; }
+    .corner-tl { top: 0; left: 0; border-width: 2px 0 0 2px; }
+    .corner-tr { top: 0; right: 0; border-width: 2px 2px 0 0; }
+    .corner-bl { bottom: 0; left: 0; border-width: 0 0 2px 2px; }
+    .corner-br { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
+    .classified { font-size: .6rem; letter-spacing: .2em; color: var(--accent-amber); text-align: center; }
+  </style>
+</head>
+<body>
+<div class="gh-login-wrap">
+  <div class="classified">⚠ CLASSIFIED SYSTEM // AUTHORISED PERSONNEL ONLY ⚠</div>
+  <div class="gh-login-card" style="position:relative">
+    <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+    <div class="gh-login-logo">
+      <h1>GHOST-SIGINT</h1>
+      <p>RF SIGNAL INTELLIGENCE SYSTEM v1.0</p>
+    </div>
+    <form id="loginForm" autocomplete="off">
+      <div style="margin-bottom:1rem">
+        <label class="gh-label" for="username">Operator ID</label>
+        <input class="gh-input" id="username" name="username" type="text"
+               placeholder="Enter operator ID" autocomplete="username" required>
+      </div>
+      <div style="margin-bottom:1rem">
+        <label class="gh-label" for="password">Authentication Code</label>
+        <input class="gh-input" id="password" name="password" type="password"
+               placeholder="••••••••••••" autocomplete="current-password" required>
+      </div>
+      <div class="error-msg" id="errMsg"></div>
+      <button class="gh-btn login-btn" type="submit" id="loginBtn">
+        ▶ AUTHENTICATE
+      </button>
+    </form>
+    <div style="margin-top:1.5rem; font-size:.65rem; color:var(--text-dim); text-align:center; letter-spacing:.05em">
+      SESSION ENCRYPTED · AES-256 · JWT AUTHENTICATED
+    </div>
+  </div>
+</div>
+<script>
+const form = document.getElementById('loginForm');
+const errMsg = document.getElementById('errMsg');
+const loginBtn = document.getElementById('loginBtn');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errMsg.textContent = '';
+  loginBtn.disabled = true;
+  loginBtn.textContent = '▶ AUTHENTICATING...';
+
+  const body = new URLSearchParams({
+    username: document.getElementById('username').value,
+    password: document.getElementById('password').value,
+  });
+
+  try {
+    const resp = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: body.toString(),
+      credentials: 'include',
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      sessionStorage.setItem('role', data.role);
+      sessionStorage.setItem('access_token', data.access_token);
+      window.location.href = 'dashboard.html';
+    } else {
+      errMsg.textContent = data.detail || 'Authentication failed';
+      loginBtn.disabled = false;
+      loginBtn.textContent = '▶ AUTHENTICATE';
+    }
+  } catch (err) {
+    errMsg.textContent = 'Network error — check connection';
+    loginBtn.disabled = false;
+    loginBtn.textContent = '▶ AUTHENTICATE';
+  }
+});
+</script>
+</body>
+</html>

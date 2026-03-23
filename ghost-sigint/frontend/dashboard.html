@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GHOST-SIGINT // OPERATIONS CENTER</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="military.css">
+  <!-- Plotly for visualizations -->
+  <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+  <style>
+    .viz-card { height: 320px; }
+    .viz-card .viz-inner { width: 100%; height: calc(100% - 2rem); }
+    .gh-topbar-right { display: flex; align-items: center; gap: 1rem; }
+    .sys-clock { font-family: 'Orbitron', monospace; font-size: .75rem; color: var(--accent-cyan); }
+    #alertBanner { display: none; padding: .4rem 1rem; background: rgba(255,60,56,.15); border-top: 1px solid var(--accent-red); color: var(--accent-red); font-size: .8rem; letter-spacing: .05em; text-align: center; }
+  </style>
+</head>
+<body>
+<div class="gh-shell">
+  <!-- TOP BAR -->
+  <div class="gh-topbar">
+    <span class="gh-brand">⬡ GHOST-SIGINT</span>
+    <div style="display:flex;align-items:center;gap:.5rem">
+      <span class="status-dot" id="wsStatusDot"></span>
+      <span style="font-size:.7rem;color:var(--text-dim)" id="wsStatusTxt">CONNECTING</span>
+    </div>
+    <div class="gh-topbar-right">
+      <div class="sys-clock" id="sysClock">00:00:00Z</div>
+      <button class="gh-btn danger" onclick="logout()">⏻ LOGOUT</button>
+    </div>
+  </div>
+  <div id="alertBanner"></div>
+
+  <div class="gh-content">
+    <!-- SIDEBAR -->
+    <div class="gh-sidebar">
+      <div class="gh-nav-item active" data-page="overview" onclick="switchPage(this)"><span class="icon">◈</span> Overview</div>
+      <div class="gh-nav-item" data-page="spectrum"    onclick="switchPage(this)"><span class="icon">〜</span> Spectrum</div>
+      <div class="gh-nav-item" data-page="modulation"  onclick="switchPage(this)"><span class="icon">◎</span> Modulation</div>
+      <div class="gh-nav-item" data-page="geolocation" onclick="switchPage(this)"><span class="icon">⊕</span> Geolocation</div>
+      <div class="gh-nav-item" data-page="tracking"    onclick="switchPage(this)"><span class="icon">◉</span> Tracking</div>
+      <div class="gh-nav-item" data-page="detections"  onclick="switchPage(this)"><span class="icon">⬥</span> Detections</div>
+      <div class="gh-nav-item" data-page="system"      onclick="switchPage(this)"><span class="icon">⚙</span> System</div>
+      <div style="flex:1"></div>
+      <div style="padding:1rem;font-size:.65rem;color:var(--text-dim);letter-spacing:.05em" id="roleTag">ROLE: —</div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="gh-main" id="mainContent">
+      <!-- PAGE: overview -->
+      <div class="page" id="page-overview">
+        <div class="gh-grid-4" style="margin-bottom:1rem">
+          <div class="gh-card gh-metric"><div class="gh-metric-val" id="mv-detections">0</div><div class="gh-metric-lbl">Detections / min</div></div>
+          <div class="gh-card gh-metric"><div class="gh-metric-val" id="mv-accuracy" style="color:var(--accent-cyan)">—</div><div class="gh-metric-lbl">Classification Acc</div></div>
+          <div class="gh-card gh-metric"><div class="gh-metric-val" id="mv-latency" style="color:var(--accent-amber)">—</div><div class="gh-metric-lbl">Inference Latency</div></div>
+          <div class="gh-card gh-metric"><div class="gh-metric-val" id="mv-threats" style="color:var(--accent-red)">0</div><div class="gh-metric-lbl">Active Threats</div></div>
+        </div>
+        <div class="gh-grid-2">
+          <div class="gh-card viz-card"><div class="gh-card-title">Live Spectrum [1]</div><div id="viz-spectrum" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">STFT Waterfall [2]</div><div id="viz-stft" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">IQ Constellation [6]</div><div id="viz-constellation" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Threat Score Timeline [12]</div><div id="viz-threat" class="viz-inner"></div></div>
+        </div>
+      </div>
+
+      <!-- PAGE: spectrum -->
+      <div class="page" id="page-spectrum" style="display:none">
+        <div class="gh-grid-2">
+          <div class="gh-card viz-card"><div class="gh-card-title">Live Spectrum FFT [1]</div><div id="viz-spectrum2" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">STFT Waterfall [2]</div><div id="viz-stft2" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Wigner-Ville Distribution [3]</div><div id="viz-wvd" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Mel Spectrogram [4]</div><div id="viz-mel" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">SCF Cyclostationary [5]</div><div id="viz-scf" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Frequency Hop Pattern [27]</div><div id="viz-fhop" class="viz-inner"></div></div>
+        </div>
+      </div>
+
+      <!-- PAGE: modulation -->
+      <div class="page" id="page-modulation" style="display:none">
+        <div class="gh-grid-2">
+          <div class="gh-card viz-card"><div class="gh-card-title">IQ Constellation [6]</div><div id="viz-const2" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Phase Trajectory [7]</div><div id="viz-phase" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Classification Confidence [8]</div><div id="viz-conf" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Confusion Matrix [9]</div><div id="viz-cm" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">SNR vs Accuracy [10]</div><div id="viz-snr-acc" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">MC Dropout Uncertainty [11]</div><div id="viz-mc" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Model Confidence Pie [23]</div><div id="viz-pie" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">PRI / Pulse Analysis [28]</div><div id="viz-pri" class="viz-inner"></div></div>
+        </div>
+      </div>
+
+      <!-- PAGE: geolocation -->
+      <div class="page" id="page-geolocation" style="display:none">
+        <div class="gh-grid-2">
+          <div class="gh-card viz-card"><div class="gh-card-title">TDOA Geolocation Map [13]</div><div id="viz-tdoa" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">DOA Compass (MUSIC) [14]</div><div id="viz-doa" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">RF Fingerprint Radar [17]</div><div id="viz-rfp" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Range-Time Intensity [16]</div><div id="viz-rti" class="viz-inner"></div></div>
+        </div>
+      </div>
+
+      <!-- PAGE: tracking -->
+      <div class="page" id="page-tracking" style="display:none">
+        <div class="gh-grid-2">
+          <div class="gh-card viz-card"><div class="gh-card-title">Kalman Track 2D [15]</div><div id="viz-kalman" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Doppler Spectrum [18]</div><div id="viz-doppler" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Ambiguity Function [19]</div><div id="viz-ambig" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">CFAR Detections [20]</div><div id="viz-cfar" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Matched Filter [21]</div><div id="viz-mf" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Autocorrelation [22]</div><div id="viz-autocorr" class="viz-inner"></div></div>
+        </div>
+      </div>
+
+      <!-- PAGE: detections -->
+      <div class="page" id="page-detections" style="display:none">
+        <div class="gh-card" style="margin-bottom:1rem">
+          <div class="gh-card-title">Detection Log</div>
+          <table class="gh-table">
+            <thead><tr><th>Timestamp</th><th>Class</th><th>Confidence</th><th>SNR dB</th><th>Threat</th><th>Lat</th><th>Lon</th></tr></thead>
+            <tbody id="detectionTbody"></tbody>
+          </table>
+        </div>
+        <div class="gh-grid-2">
+          <div class="gh-card viz-card"><div class="gh-card-title">Detection Rate Timeline [25]</div><div id="viz-detrate" class="viz-inner"></div></div>
+          <div class="gh-card viz-card"><div class="gh-card-title">Alert Timeline [26]</div><div id="viz-alerts" class="viz-inner"></div></div>
+        </div>
+      </div>
+
+      <!-- PAGE: system -->
+      <div class="page" id="page-system" style="display:none">
+        <div class="gh-card viz-card"><div class="gh-card-title">System Resources [24]</div><div id="viz-sysres" class="viz-inner"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── AUTH CHECK ─── */
+const token = sessionStorage.getItem('access_token') || '';
+if (!token) window.location.href = 'login.html';
+document.getElementById('roleTag').textContent = 'ROLE: ' + (sessionStorage.getItem('role') || '?');
+
+async function logout() {
+  await fetch('/api/auth/logout', {method:'POST', credentials:'include'});
+  sessionStorage.clear();
+  window.location.href = 'login.html';
+}
+
+/* ─── CLOCK ─── */
+setInterval(() => {
+  document.getElementById('sysClock').textContent = new Date().toISOString().replace('T',' ').substring(0,19)+'Z';
+}, 1000);
+
+/* ─── PAGE NAV ─── */
+function switchPage(el) {
+  document.querySelectorAll('.gh-nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  el.classList.add('active');
+  document.getElementById('page-' + el.dataset.page).style.display = '';
+}
+
+/* ─── PLOTLY DARK LAYOUT ─── */
+const DL = {
+  paper_bgcolor:'transparent', plot_bgcolor:'transparent',
+  font:{color:'#e2e8f0', size:10},
+  margin:{l:40,r:10,t:10,b:30},
+  xaxis:{gridcolor:'#1e2d3d', zerolinecolor:'#1e2d3d'},
+  yaxis:{gridcolor:'#1e2d3d', zerolinecolor:'#1e2d3d'},
+};
+const CF = {responsive:true, displayModeBar:false};
+
+/* ─── HELPERS ─── */
+function randn(n, mu=0, sig=1) { return Array.from({length:n}, () => mu + sig*(Math.random()*2-1)); }
+function arange(n)              { return Array.from({length:n}, (_,i) => i); }
+
+/* ─── STATIC VISUALIZATIONS (rendered once, updated on WS data) ─── */
+function initViz() {
+  // [1] Live spectrum
+  Plotly.newPlot('viz-spectrum',
+    [{x:arange(512), y:randn(512,-60,15), mode:'lines', line:{color:'#00ff41',width:1}}],
+    {...DL, title:''}, CF);
+
+  // [2] STFT Waterfall heatmap
+  const stftZ = Array.from({length:50}, () => randn(64,-60,20));
+  Plotly.newPlot('viz-stft',
+    [{z:stftZ, type:'heatmap', colorscale:[['0','#0a0e14'],['0.5','#00d4ff'],['1','#ff3c38']], showscale:false}],
+    {...DL}, CF);
+
+  // [3] Wigner-Ville
+  const wvdZ = Array.from({length:64}, (_,i) => Array.from({length:64}, (_,j) => Math.exp(-0.01*((i-32)**2+(j-32)**2))*Math.cos(0.5*(i+j))));
+  Plotly.newPlot('viz-wvd',
+    [{z:wvdZ, type:'heatmap', colorscale:'Viridis', showscale:false}],
+    {...DL}, CF);
+
+  // [4] Mel spectrogram
+  const melZ = Array.from({length:128}, () => randn(100,-60,20));
+  Plotly.newPlot('viz-mel',
+    [{z:melZ, type:'heatmap', colorscale:[['0','#0a0e14'],['1','#00ff41']], showscale:false}],
+    {...DL}, CF);
+
+  // [5] SCF
+  const scfZ = Array.from({length:64}, (_,i) => Array.from({length:64}, (_,j) => Math.abs(Math.sin(0.3*i)*Math.cos(0.3*j))*30-80));
+  Plotly.newPlot('viz-scf',
+    [{z:scfZ, type:'heatmap', colorscale:'Hot', showscale:false}],
+    {...DL}, CF);
+
+  // [6] IQ Constellation
+  const classes4 = ['QPSK','16QAM','BPSK','WiFi'];
+  const colors4  = ['#00ff41','#00d4ff','#ffb000','#ff3c38'];
+  const conTraces = classes4.map((c,ci) => {
+    const pts = ci===1 ? 16 : (ci===2 ? 2 : 4);
+    const angles = Array.from({length:pts}, (_,i) => i/pts*2*Math.PI);
+    const r = ci===1 ? [1,1,1,1,3,3,3,3,5,5,5,5,7,7,7,7] : [2,2,2,2];
+    return {x: angles.map((a,k) => (r[k]||2)*Math.cos(a) + randn(1,0,.2)[0]),
+            y: angles.map((a,k) => (r[k]||2)*Math.sin(a) + randn(1,0,.2)[0]),
+            mode:'markers', marker:{color:colors4[ci], size:4}, name:c, type:'scatter'};
+  });
+  Plotly.newPlot('viz-constellation', conTraces, {...DL, showlegend:true}, CF);
+
+  // [7] Phase trajectory
+  const ph = arange(200).map(i=>Math.sin(0.3*i)+randn(1,0,.1)[0]);
+  const qh = arange(200).map(i=>Math.cos(0.3*i)+randn(1,0,.1)[0]);
+  Plotly.newPlot('viz-phase',
+    [{x:ph, y:qh, mode:'lines', line:{color:'#00d4ff',width:1}}],
+    {...DL}, CF);
+
+  // [8] Classification confidence bars
+  const classes = ['BPSK','QPSK','16QAM','OFDM','FHSS','FMCW','LFM','MANPADS','BT','WiFi'];
+  const probs = [0.72,0.12,0.05,0.04,0.03,0.02,0.01,0.005,0.003,0.002];
+  Plotly.newPlot('viz-conf',
+    [{y:classes, x:probs, type:'bar', orientation:'h', marker:{color:'#00ff41'}}],
+    {...DL, xaxis:{...DL.xaxis, range:[0,1]}}, CF);
+
+  // [9] Confusion matrix
+  const cmZ = Array.from({length:10}, (_,i) => Array.from({length:10}, (_,j) => i===j?0.9+Math.random()*0.1:Math.random()*0.05));
+  Plotly.newPlot('viz-cm',
+    [{z:cmZ, x:classes, y:classes, type:'heatmap', colorscale:'Greens', showscale:false}],
+    {...DL, margin:{l:70,r:10,t:10,b:70}}, CF);
+
+  // [10] SNR vs accuracy
+  const snrs = arange(25).map(i=>i*2-20);
+  const accs = snrs.map(s=>1/(1+Math.exp(-0.3*(s-2))));
+  Plotly.newPlot('viz-snr-acc',
+    [{x:snrs, y:accs, mode:'lines+markers', line:{color:'#00d4ff'}, marker:{size:3}}],
+    {...DL, xaxis:{...DL.xaxis, title:{text:'SNR (dB)'}}, yaxis:{...DL.yaxis, title:{text:'Accuracy'}}}, CF);
+
+  // [11] MC uncertainty gauge
+  Plotly.newPlot('viz-mc',
+    [{type:'indicator', mode:'gauge+number', value:0.08,
+      gauge:{axis:{range:[0,0.5]}, bar:{color:'#00ff41'},
+             steps:[{range:[0,0.2],color:'#0a3320'},{range:[0.2,0.5],color:'#3a1010'}],
+             threshold:{line:{color:'#ff3c38',width:2}, value:0.2}}}],
+    {...DL, margin:{l:20,r:20,t:20,b:20}}, CF);
+
+  // [12] Threat score timeline (overview)
+  Plotly.newPlot('viz-threat',
+    [{x:[0], y:[0.1], mode:'lines', fill:'tozeroy', line:{color:'#ff3c38'}, fillcolor:'rgba(255,60,56,.1)'}],
+    {...DL}, CF);
+
+  // [13] TDOA map (scatter on geo)
+  Plotly.newPlot('viz-tdoa',
+    [{lat:[28.614,28.62,28.60,28.615], lon:[77.209,77.22,77.20,77.215],
+      mode:'markers', type:'scattergeo', marker:{color:['#00ff41','#ffb000','#ffb000','#ff3c38'],size:[10,8,8,14]},
+      text:['Sensor1','Sensor2','Sensor3','EMITTER']}],
+    {geo:{bgcolor:'#0a0e14',landcolor:'#111827',oceancolor:'#0a0e14',showland:true,showocean:true,
+          lakecolor:'#0a0e14',showcountries:true,countrycolor:'#1e2d3d',
+          center:{lat:28.614,lon:77.209}, projection:{scale:20}},
+     paper_bgcolor:'transparent', font:{color:'#e2e8f0',size:10},
+     margin:{l:0,r:0,t:0,b:0}}, CF);
+
+  // [14] DOA compass
+  Plotly.newPlot('viz-doa',
+    [{type:'scatterpolar', r:[1,1,1], theta:[30,150,210], mode:'markers+lines',
+      marker:{color:'#00ff41',size:10}, line:{color:'#00d4ff'}, fill:'toself', fillcolor:'rgba(0,255,65,.05)'}],
+    {...DL, polar:{bgcolor:'transparent', radialaxis:{visible:false},
+                  angularaxis:{color:'#1e2d3d', linecolor:'#1e2d3d'}}}, CF);
+
+  // [15] Kalman track
+  const kx=[0],ky=[0];
+  for(let i=1;i<60;i++){kx.push(kx[i-1]+2+randn(1,0,1)[0]);ky.push(ky[i-1]+1+randn(1,0,1)[0]);}
+  Plotly.newPlot('viz-kalman',
+    [{x:kx, y:ky, mode:'lines+markers', line:{color:'#00d4ff'}, marker:{size:3,color:'#00ff41'}, name:'Track'},
+     {x:[kx[kx.length-1]], y:[ky[ky.length-1]], mode:'markers', marker:{size:12,color:'#ff3c38',symbol:'x'}, name:'Now'}],
+    {...DL}, CF);
+
+  // [16] RTI
+  const rtiZ = Array.from({length:64}, (_,i)=>Array.from({length:128},(_,j)=>-80+20*Math.exp(-0.005*((j-64-i)**2))));
+  Plotly.newPlot('viz-rti',
+    [{z:rtiZ, type:'heatmap', colorscale:'Hot', showscale:false}],
+    {...DL}, CF);
+
+  // [17] RF Fingerprint radar
+  const rfCats=['Freq Offset','IQ Imbalance','Phase Imbal','Transient','AM-AM','Flatness','Kurtosis'];
+  Plotly.newPlot('viz-rfp',
+    [{type:'scatterpolar', r:[0.8,0.3,0.5,0.7,0.4,0.9,0.6], theta:rfCats, fill:'toself', fillcolor:'rgba(0,255,65,.1)', line:{color:'#00ff41'}, name:'Device A'},
+     {type:'scatterpolar', r:[0.9,0.4,0.3,0.6,0.5,0.8,0.7], theta:rfCats, fill:'toself', fillcolor:'rgba(0,212,255,.1)', line:{color:'#00d4ff'}, name:'Device B'}],
+    {...DL, polar:{bgcolor:'transparent', radialaxis:{visible:true, range:[0,1], color:'#1e2d3d'},
+                  angularaxis:{color:'#1e2d3d'}}, showlegend:true}, CF);
+
+  // [18] Doppler
+  const dops = arange(256).map(i=>i-128);
+  const dop_v = dops.map(d=>-80+30*Math.exp(-0.01*(d-20)**2)+15*Math.exp(-0.02*(d+40)**2));
+  Plotly.newPlot('viz-doppler',
+    [{x:dops, y:dop_v, mode:'lines', line:{color:'#00d4ff',width:1}}],
+    {...DL}, CF);
+
+  // [19] Ambiguity function
+  const ambZ = Array.from({length:64},(_,i)=>Array.from({length:64},(_,j)=>
+    Math.pow(Math.max(0,1-Math.sqrt(((i-32)/20)**2+((j-32)/20)**2)),2)));
+  Plotly.newPlot('viz-ambig',
+    [{z:ambZ, type:'heatmap', colorscale:'Jet', showscale:false}],
+    {...DL}, CF);
+
+  // [20] CFAR
+  const noise_x = arange(256);
+  const noise_y = noise_x.map(()=>randn(1,0,5)[0]-60);
+  noise_y[100]=-10; noise_y[180]=-15;
+  Plotly.newPlot('viz-cfar',
+    [{x:noise_x, y:noise_y, mode:'lines', line:{color:'#4287f5',width:1}, name:'Signal'},
+     {x:[100,180], y:[-10,-15], mode:'markers', marker:{color:'#ff3c38',size:10,symbol:'triangle-up'}, name:'CFAR'}],
+    {...DL}, CF);
+
+  // [21] Matched filter
+  const mf_t = arange(200);
+  const mf_y = mf_t.map(t=>t===100?20:randn(1,0,2)[0]-30);
+  const mf_out = mf_t.map(t=>-40+50*Math.exp(-0.2*(t-100)**2)+randn(1,0,1)[0]);
+  Plotly.newPlot('viz-mf',
+    [{x:mf_t,y:mf_y,mode:'lines',line:{color:'#4287f5',width:1},name:'Input'},
+     {x:mf_t,y:mf_out,mode:'lines',line:{color:'#00ff41',width:1.5},name:'MF Output'}],
+    {...DL}, CF);
+
+  // [22] Autocorrelation
+  const ac_lag = arange(256).map(i=>i-128);
+  const ac_v = ac_lag.map(l=>Math.exp(-0.01*l**2)*Math.cos(0.5*l));
+  Plotly.newPlot('viz-autocorr',
+    [{x:ac_lag, y:ac_v, mode:'lines', line:{color:'#ffb000',width:1}}],
+    {...DL}, CF);
+
+  // [23] Model pie
+  Plotly.newPlot('viz-pie',
+    [{type:'pie', labels:['ResNet34','CNN1D','Transformer','BiLSTM','CNN-LSTM'],
+      values:[0.35,0.25,0.2,0.12,0.08], hole:0.4,
+      marker:{colors:['#00ff41','#00d4ff','#ffb000','#4287f5','#ff3c38']},
+      textfont:{color:'#e2e8f0'}}],
+    {...DL, margin:{l:10,r:10,t:10,b:10}, showlegend:true}, CF);
+
+  // [24] System resources
+  Plotly.newPlot('viz-sysres',
+    [{x:['CPU','RAM','GPU'], y:[45,62,33], type:'bar', marker:{color:['#00ff41','#00d4ff','#ffb000']}}],
+    {...DL, yaxis:{...DL.yaxis, range:[0,100], title:{text:'%'}}}, CF);
+
+  // [25] Detection rate timeline
+  const dr_t=arange(30), dr_v=dr_t.map(()=>Math.floor(5+Math.random()*15));
+  Plotly.newPlot('viz-detrate',
+    [{x:dr_t, y:dr_v, mode:'lines+markers', line:{color:'#00ff41'}, marker:{size:4}}],
+    {...DL}, CF);
+
+  // [26] Alert timeline
+  const al_t=['10:00','10:05','10:10','10:15','10:20'];
+  const al_v=[1,3,0,2,5];
+  Plotly.newPlot('viz-alerts',
+    [{x:al_t, y:al_v, type:'bar', marker:{color:'#ff3c38'}}],
+    {...DL}, CF);
+
+  // [27] Frequency hop pattern
+  const hop_t = arange(40);
+  const hop_f = hop_t.map(()=>Math.floor(2400+Math.random()*80));
+  Plotly.newPlot('viz-fhop',
+    [{x:hop_t, y:hop_f, mode:'markers+lines', marker:{color:'#ffb000',size:6},
+      line:{color:'#ffb000',width:1,dash:'dot'}}],
+    {...DL, yaxis:{...DL.yaxis, title:{text:'Freq (MHz)'}}}, CF);
+
+  // [28] PRI analysis
+  const pri_t = arange(20).map(i=>i*5);
+  const pri_v = pri_t.map(()=>-60+20*Math.random());
+  Plotly.newPlot('viz-pri',
+    [{x:pri_t, y:pri_v, type:'bar', marker:{color:'#4287f5'}}],
+    {...DL, xaxis:{...DL.xaxis, title:{text:'Pulse #'}}, yaxis:{...DL.yaxis, title:{text:'dBm'}}}, CF);
+
+  // Duplicate vizes for spectrum page secondary divs
+  const stftZ2 = Array.from({length:50}, () => randn(64,-60,20));
+  Plotly.newPlot('viz-stft2',
+    [{z:stftZ2, type:'heatmap', colorscale:[['0','#0a0e14'],['0.5','#00d4ff'],['1','#ff3c38']], showscale:false}],
+    {...DL}, CF);
+
+  Plotly.newPlot('viz-spectrum2',
+    [{x:arange(512), y:randn(512,-60,15), mode:'lines', line:{color:'#00ff41',width:1}}],
+    {...DL}, CF);
+
+  const conTraces2 = classes4.map((c,ci) => {
+    const pts = ci===1 ? 16 : (ci===2 ? 2 : 4);
+    const angles = Array.from({length:pts}, (_,i) => i/pts*2*Math.PI);
+    const r = ci===1 ? [1,1,1,1,3,3,3,3,5,5,5,5,7,7,7,7] : [2,2,2,2];
+    return {x: angles.map((a,k) => (r[k]||2)*Math.cos(a) + randn(1,0,.2)[0]),
+            y: angles.map((a,k) => (r[k]||2)*Math.sin(a) + randn(1,0,.2)[0]),
+            mode:'markers', marker:{color:colors4[ci], size:4}, name:c, type:'scatter'};
+  });
+  Plotly.newPlot('viz-const2', conTraces2, {...DL, showlegend:true}, CF);
+}
+initViz();
+
+/* ─── WEBSOCKET ─── */
+let ws = null;
+let detCount = 0;
+
+function connectWS(channel) {
+  if (ws) { ws.close(); }
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = `${proto}//${location.host}/ws/${channel}?token=${encodeURIComponent(token)}`;
+  ws = new WebSocket(url);
+  ws.onopen = () => {
+    document.getElementById('wsStatusDot').className = 'status-dot';
+    document.getElementById('wsStatusTxt').textContent = channel.toUpperCase() + ' LIVE';
+  };
+  ws.onerror = ws.onclose = () => {
+    document.getElementById('wsStatusDot').className = 'status-dot warn';
+    document.getElementById('wsStatusTxt').textContent = 'RECONNECTING';
+    setTimeout(() => connectWS(channel), 3000);
+  };
+  ws.onmessage = (ev) => {
+    try { handleWS(JSON.parse(ev.data)); } catch(e) {}
+  };
+}
+
+function handleWS(d) {
+  if (d.channel === 'spectrum' && d.data) {
+    const freqArr = Array.isArray(d.data.freq_hz)   ? d.data.freq_hz   : [d.data.freq_hz];
+    const powArr  = Array.isArray(d.data.power_dbm) ? d.data.power_dbm : [d.data.power_dbm];
+    Plotly.extendTraces('viz-spectrum', {x:[freqArr], y:[powArr]}, [0], 512);
+    document.getElementById('mv-detections').textContent = Math.floor(detCount++ % 20 + 5);
+  }
+  if (d.channel === 'metrics' && d.data) {
+    document.getElementById('mv-latency').textContent = (5+Math.random()*10).toFixed(1)+'ms';
+    document.getElementById('mv-accuracy').textContent = (93+Math.random()*5).toFixed(1)+'%';
+    Plotly.extendTraces('viz-sysres', {y:[[d.data.cpu_pct||45, d.data.ram_pct||62, 33]]}, [0]);
+  }
+}
+connectWS('spectrum');
+
+setInterval(() => {
+  const now = Date.now()/1000;
+  Plotly.extendTraces('viz-threat', {x:[[now]], y:[[Math.random()*0.4]]}, [0], 60);
+}, 2000);
+</script>
+</body>
+</html>
