@@ -77,7 +77,7 @@ form.addEventListener('submit', async (e) => {
     if (resp.ok) {
       sessionStorage.setItem('role', data.role);
       sessionStorage.setItem('access_token', data.access_token);
-      window.location.href = '/static/dashboard.html';
+      window.location.href = 'dashboard.html';
     } else {
       errMsg.textContent = data.detail || 'Authentication failed';
       loginBtn.disabled = false;

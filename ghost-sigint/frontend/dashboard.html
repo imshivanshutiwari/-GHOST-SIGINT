@@ -139,13 +139,13 @@
 <script>
 /* ─── AUTH CHECK ─── */
 const token = sessionStorage.getItem('access_token') || '';
-if (!token) window.location.href = '/static/login.html';
+if (!token) window.location.href = 'login.html';
 document.getElementById('roleTag').textContent = 'ROLE: ' + (sessionStorage.getItem('role') || '?');
 
 async function logout() {
   await fetch('/api/auth/logout', {method:'POST', credentials:'include'});
   sessionStorage.clear();
-  window.location.href = '/static/login.html';
+  window.location.href = 'login.html';
 }
 
 /* ─── CLOCK ─── */
@@ -407,7 +407,8 @@ let detCount = 0;
 
 function connectWS(channel) {
   if (ws) { ws.close(); }
-  const url = `ws://${location.host}/ws/${channel}?token=${encodeURIComponent(token)}`;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = `${proto}//${location.host}/ws/${channel}?token=${encodeURIComponent(token)}`;
   ws = new WebSocket(url);
   ws.onopen = () => {
     document.getElementById('wsStatusDot').className = 'status-dot';
@@ -425,7 +426,9 @@ function connectWS(channel) {
 
 function handleWS(d) {
   if (d.channel === 'spectrum' && d.data) {
-    Plotly.extendTraces('viz-spectrum', {x:[d.data.freq_hz], y:[d.data.power_dbm]}, [0], 512);
+    const freqArr = Array.isArray(d.data.freq_hz)   ? d.data.freq_hz   : [d.data.freq_hz];
+    const powArr  = Array.isArray(d.data.power_dbm) ? d.data.power_dbm : [d.data.power_dbm];
+    Plotly.extendTraces('viz-spectrum', {x:[freqArr], y:[powArr]}, [0], 512);
     document.getElementById('mv-detections').textContent = Math.floor(detCount++ % 20 + 5);
   }
   if (d.channel === 'metrics' && d.data) {
